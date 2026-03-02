@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0] - 2026-03-02
+
+### Added
+- **Lite 直连运行时**：
+  - 新增 `src/lite/` 轻量运行时栈，支持直连 Goofish WebSocket、双层去重、消息收发和自动回复
+  - 新增 `scripts/lite_start.sh` 快速启动入口
+- **报价链路增强**：
+  - 新增 `src/modules/quote/geo_resolver.py`，提供省市归一化与城市/省份候选扩展
+  - 新增 `src/modules/quote/excel_import.py`，支持自适应 Excel 导入、列名变体识别与快递公司自动识别
+  - `QuoteResult` 新增 `source_excel` 与 `matched_route` 字段，增强报价追溯
+- **消息能力增强**：
+  - 新增 `src/modules/messages/info_extractor.py`，提供规则优先信息抽取与可选 LLM 回退
+  - 新增 `src/modules/messages/manual_mode.py`，提供会话级人工接管持久化
+  - 新增 `src/modules/messages/safety_guard.py`，提供禁寄物品双重校验
+- 新增大批针对性覆盖测试，覆盖 Dashboard、Lite、报价匹配与消息分支路径
+
+### Changed
+- `CostTableRepository.find_candidates(...)` 升级为三级匹配 + 路由语义兜底，提升省/市混输命中率
+- `dashboard_server` 的 multipart 文件读取改为 MIME 兼容解析，适配 Python 3.13+/3.14
+- `GoofishWsTransport` 的事件等待逻辑改为可取消超时等待，减少异步任务悬挂
+- `FollowUpEngine` 的写入返回值改用稳定的 `rowcount`
+- `README.md` 更新为 5.3.0 说明
+
+### Fixed
+- 修复真实报价表导入时自治区名称被截断的问题（如 `广西壮族自治区` / `宁夏回族自治区`）
+- 修复纯城市级线路表对“市 -> 省”与部分“省 -> 省”查询命中不足的问题
+- 修复 Dashboard multipart 上传场景下附件内容读取为空的问题
+
 ## [5.2.0] - 2026-03-01
 
 ### Added
