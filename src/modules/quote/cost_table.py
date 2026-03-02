@@ -253,6 +253,12 @@ class CostTableRepository:
                 scored = self._rank_by_origin_similarity(dest_pool, origin_region)
             if scored:
                 return scored[:limit]
+
+        # Final fallback: allow semantic route matching when the request uses
+        # province-level input but the table stores city-level routes.
+        route_scored = self._rank_by_route_similarity(pool, origin_norm, destination_norm)
+        if route_scored:
+            return route_scored[:limit]
         return []
 
     def get_stats(self, max_files: int = 30) -> dict:
@@ -346,6 +352,38 @@ class CostTableRepository:
 
         ranked.sort(key=lambda item: (-item[0], item[1].first_cost + item[1].extra_cost, item[1].first_cost))
         return [record for _, record in ranked]
+
+    def _rank_by_route_similarity(
+        self,
+        records: list[CostRecord],
+        origin_norm: str,
+        destination_norm: str,
+    ) -> list[CostRecord]:
+        if not records:
+            return []
+
+        ranked: list[tuple[int, int, CostRecord]] = []
+        for record in records:
+            row_origin = normalize_location_name(record.origin)
+            row_destination = normalize_location_name(record.destination)
+            origin_score = self._origin_similarity(origin_norm, row_origin)
+            destination_score = self._origin_similarity(destination_norm, row_destination)
+            if origin_score <= 0 or destination_score <= 0:
+                continue
+            ranked.append((destination_score, origin_score, record))
+
+        if not ranked:
+            return []
+
+        ranked.sort(
+            key=lambda item: (
+                -item[0],
+                -item[1],
+                item[2].first_cost + item[2].extra_cost,
+                item[2].first_cost,
+            )
+        )
+        return [record for _, _, record in ranked]
 
     @staticmethod
     def _origin_similarity(request_origin: str, row_origin: str) -> int:
