@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import yaml
 
@@ -46,10 +47,11 @@ class ComplianceCenter:
         self._init_db()
         self.reload()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
+            conn.row_factory = sqlite3.Row
+            yield conn
 
     def _init_db(self) -> None:
         with self._connect() as conn:

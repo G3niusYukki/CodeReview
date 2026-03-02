@@ -9,6 +9,7 @@ import asyncio
 import csv
 import json
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -171,7 +172,7 @@ class AnalyticsService:
 
     def _init_db_sync(self) -> None:
         """同步初始化数据库，确保服务创建后表结构可立即使用"""
-        with sqlite3.connect(self.db_path, timeout=self._db_timeout) as db:
+        with closing(sqlite3.connect(self.db_path, timeout=self._db_timeout)) as db, db:
             db.execute("""
                 CREATE TABLE IF NOT EXISTS operation_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

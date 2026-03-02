@@ -7,11 +7,12 @@ import hashlib
 import json
 import sqlite3
 import time
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from src.core.cookie_health import CookieHealthChecker
 
@@ -102,12 +103,13 @@ class WorkflowStore:
     def _ts_after(seconds: int) -> str:
         return (datetime.now(UTC) + timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
-        return conn
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=5000")
+            yield conn
 
     def _init_schema(self) -> None:
         with self._connect() as conn:

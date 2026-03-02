@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import math
 import sqlite3
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 
 class GrowthService:
@@ -16,10 +17,11 @@ class GrowthService:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
+            conn.row_factory = sqlite3.Row
+            yield conn
 
     @staticmethod
     def _now() -> str:

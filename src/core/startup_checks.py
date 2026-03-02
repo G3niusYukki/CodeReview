@@ -8,6 +8,7 @@ Startup Health Checks
 import os
 import sqlite3
 import sys
+from contextlib import closing
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -88,9 +89,8 @@ def check_database_writable() -> StartupCheckResult:
         cfg = get_config()
         db_path = cfg.database.get("path", "data/agent.db")
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(db_path, timeout=5)
-        conn.execute("SELECT 1")
-        conn.close()
+        with closing(sqlite3.connect(db_path, timeout=5)) as conn:
+            conn.execute("SELECT 1")
         return StartupCheckResult("数据库", True, f"可读写 ({db_path})")
     except Exception as e:
         return StartupCheckResult("数据库", False, f"不可用: {e}")
