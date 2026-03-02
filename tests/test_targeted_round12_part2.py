@@ -252,7 +252,7 @@ async def test_messages_service_ws_quote_and_send_branches(monkeypatch, tmp_path
     s.compliance_guard = SimpleNamespace(evaluate_content=lambda _text: {"blocked": False})
     s._get_quote_context = lambda sid: {"courier_choice": "圆通"}
     s._has_quote_context = lambda sid: True
-    reply1, meta1 = await s._generate_reply_with_quote("我要下单", session_id="sid")
+    _reply1, meta1 = await s._generate_reply_with_quote("我要下单", session_id="sid")
     assert meta1["quote_need_info"] is True and meta1["is_quote"] is True
 
     s.strict_format_reply_enabled = True
@@ -378,8 +378,8 @@ async def test_quote_engine_and_provider_extra_branches(monkeypatch, tmp_path):
     async def slow_api(*_a, **_k):
         try:
             await asyncio.sleep(0.05)
-        except asyncio.CancelledError:
-            raise RuntimeError("cancelled")
+        except asyncio.CancelledError as err:
+            raise RuntimeError("cancelled") from err
         return _quote_result("api")
 
     monkeypatch.setattr(engine7.api_cost_provider, "get_quote", slow_api)

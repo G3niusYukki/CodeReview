@@ -360,7 +360,7 @@ async def test_messages_greeting_forces_standard_template_even_non_strict(mock_c
 
 
 @pytest.mark.asyncio
-async def test_messages_courier_choice_returns_checkout_guide(mock_controller) -> None:
+async def test_messages_quote_context_completes_on_followup_weight(mock_controller) -> None:
     service = MessagesService(
         controller=mock_controller,
         config={
