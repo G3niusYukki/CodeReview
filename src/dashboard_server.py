@@ -16,10 +16,11 @@ import sys
 import threading
 import time
 import zipfile
+from contextlib import closing, contextmanager
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 from urllib.parse import parse_qs, urlparse
 
 import yaml
@@ -72,12 +73,13 @@ class DashboardRepository:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
-        return conn
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        with closing(sqlite3.connect(self.db_path)) as conn, conn:
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=5000")
+            yield conn
 
     def get_summary(self) -> dict[str, Any]:
         with self._connect() as conn:
@@ -1160,7 +1162,7 @@ class MimicOps:
         reply_states = ("REPLIED", "QUOTED")
         ok_status = ("success", "forced")
         try:
-            with sqlite3.connect(db_path) as conn:
+            with closing(sqlite3.connect(db_path)) as conn:
                 conn.row_factory = sqlite3.Row
 
                 total_replied = int(
