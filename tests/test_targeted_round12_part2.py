@@ -463,7 +463,7 @@ async def test_quote_engine_and_provider_extra_branches(monkeypatch, tmp_path):
     assert captured["headers"]["X-API-Key"] == "abc"
     assert await api_provider.health_check() is True
 
-    remote_provider = RemoteQuoteProvider(enabled=True, simulated_latency_ms=0, failure_rate=0.0)
+    remote_provider = RemoteQuoteProvider(enabled=True, simulated_latency_ms=0, failure_rate=0.0, allow_mock=True)
     urgent_quote = await remote_provider.get_quote(QuoteRequest(origin="A", destination="B", weight=1.0, service_level="urgent"))
     assert urgent_quote.base_fee == 16.0
     assert await remote_provider.health_check() is True
