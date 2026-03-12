@@ -1,4 +1,4 @@
-const { ProviderFactory } = require('./providers');
+const { ProviderFactory } = require('../providers');
 const AIProvider = require('../models/AIProvider');
 
 const PLAN_CONFIGS = {
