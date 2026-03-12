@@ -15,7 +15,9 @@ import githubRoutes from './routes/github';
 import paymentRoutes from './routes/payment';
 import teamRoutes from './routes/team';
 import webhookRoutes from './routes/webhook';
+import providerRoutes from './routes/provider';
 import { authLimiter, apiLimiter } from './middleware/rateLimiter';
+import { codeReviewService } from './services/codeReviewService';
 
 const app: Application = express();
 
@@ -36,6 +38,7 @@ app.use('/api/github', apiLimiter, githubRoutes);
 app.use('/api/payment', apiLimiter, paymentRoutes);
 app.use('/api/team', apiLimiter, teamRoutes);
 app.use('/api/webhooks', apiLimiter, webhookRoutes);
+app.use('/api/providers', apiLimiter, providerRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -58,6 +61,10 @@ async function startServer(): Promise<void> {
     
     await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
     console.log('Database synchronized');
+    
+    // Load AI providers
+    await codeReviewService.loadProviders();
+    console.log('AI providers loaded');
     
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

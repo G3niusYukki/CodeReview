@@ -1,4 +1,5 @@
-const axios = require('axios');
+const { ProviderFactory } = require('./providers');
+const AIProvider = require('../models/AIProvider');
 
 const PLAN_CONFIGS = {
   free: { limit: 5, price: 0, name: 'Free' },
@@ -7,186 +8,143 @@ const PLAN_CONFIGS = {
   team: { limit: 1000, price: 199, name: 'Team' }
 };
 
-async function reviewCode(codeContent, language, options = {}) {
-  const startTime = Date.now();
-  
-  try {
-    const systemPrompt = generateStructuredPrompt(language, options);
+class CodeReviewService {
+  constructor() {
+    this.providers = new Map();
+    this.defaultProvider = null;
+  }
 
-    const response = await axios.post(
-      process.env.GLM5_API_URL,
-      {
-        model: 'glm-4',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Please review this code:\n\n\`\`\`${language}\n${codeContent}\n\`\`\`` }
-        ],
-        temperature: 0.3,
-        max_tokens: 4000,
-        response_format: { type: 'json_object' }
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.GLM5_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 60000
-      }
-    );
-
-    const processingTime = (Date.now() - startTime) / 1000;
-    const reviewText = response.data.choices[0].message.content;
-    
-    let structuredResult;
+  async loadProviders() {
     try {
-      structuredResult = JSON.parse(reviewText);
-    } catch (e) {
-      console.warn('Failed to parse JSON response, falling back to text parsing');
-      structuredResult = fallbackParse(reviewText);
+      const providers = await AIProvider.findAll({
+        where: { isActive: true },
+        order: [['priority', 'DESC']]
+      });
+
+      this.providers.clear();
+      
+      for (const config of providers) {
+        try {
+          const provider = ProviderFactory.createProvider(config);
+          this.providers.set(config.name, provider);
+          
+          if (config.isDefault) {
+            this.defaultProvider = provider;
+          }
+        } catch (error) {
+          console.error(`Failed to load provider ${config.name}:`, error.message);
+        }
+      }
+
+      // 如果没有默认 provider，使用第一个
+      if (!this.defaultProvider && this.providers.size > 0) {
+        this.defaultProvider = Array.from(this.providers.values())[0];
+      }
+
+      console.log(`Loaded ${this.providers.size} AI providers`);
+    } catch (error) {
+      console.error('Failed to load providers:', error);
+      // 使用环境变量中的 GLM 作为 fallback
+      this.loadFallbackProvider();
     }
-    
-    return {
-      ...structuredResult,
-      processingTime
-    };
-  } catch (error) {
-    console.error('GLM-5 API Error:', error.response?.data || error.message);
-    throw new Error(`Code review failed: ${error.message}`);
   }
-}
 
-function generateStructuredPrompt(language, options) {
-  return `You are an expert code reviewer. Analyze the code and return a JSON object with this exact structure:
-
-{
-  "summary": "Brief overview of the code quality (2-3 sentences)",
-  "score": {
-    "security": 0-100,
-    "performance": 0-100,
-    "maintainability": 0-100,
-    "overall": 0-100
-  },
-  "issues": [
-    {
-      "id": 1,
-      "severity": "high|medium|low",
-      "category": "security|performance|quality|best_practice",
-      "title": "Brief issue title",
-      "description": "Detailed explanation",
-      "line": line_number_or_null,
-      "suggestion": "How to fix it"
+  loadFallbackProvider() {
+    if (process.env.GLM5_API_URL && process.env.GLM5_API_KEY) {
+      const fallbackConfig = {
+        name: 'glm-fallback',
+        providerType: 'openai-compatible',
+        apiEndpoint: process.env.GLM5_API_URL,
+        apiKey: process.env.GLM5_API_KEY,
+        defaultModel: 'glm-4',
+        config: {
+          temperature: 0.3,
+          maxTokens: 4000,
+          timeout: 60000,
+          supportsJsonMode: true
+        }
+      };
+      
+      const provider = ProviderFactory.createProvider(fallbackConfig);
+      this.providers.set('glm-fallback', provider);
+      this.defaultProvider = provider;
+      
+      console.log('Loaded fallback GLM provider');
     }
-  ],
-  "metrics": {
-    "totalIssues": number,
-    "securityIssues": number,
-    "performanceIssues": number,
-    "qualityIssues": number
   }
-}
 
-Analyze for:
-1. Security vulnerabilities (SQL injection, XSS, auth issues, etc.)
-2. Performance problems
-3. Code quality and maintainability
-4. Potential bugs
-5. Architecture and best-practice improvements
-
-Language: ${language}
-${options.language === 'zh' ? 'Respond in Chinese.' : 'Respond in English.'}
-
-Be specific with line numbers and provide actionable suggestions. If no issues found in a category, set count to 0.`;
-}
-
-function fallbackParse(reviewText) {
-  const issues = [];
-  let securityIssues = 0;
-  let performanceIssues = 0;
-  let bestPracticeIssues = 0;
-
-  const securityPatterns = [
-    /sql injection|injection|authentication|authorization|xss|csrf/gi
-  ];
-  
-  const performancePatterns = [
-    /performance|slow|optimization|efficient|n\+1|memory leak/gi
-  ];
-  
-  const bestPracticePatterns = [
-    /best practice|clean code|refactor|maintainable|solid|dry|kiss/gi
-  ];
-
-  const sections = reviewText.split(/\n(?=\d+\.|[\-•*]|Security|Performance|Best Practice|Issue|Problem)/gi);
-  
-  sections.forEach((section, index) => {
-    if (!section.trim()) return;
+  async reviewCode(codeContent, language, options = {}) {
+    const providerName = options.provider;
+    let provider = providerName ? this.providers.get(providerName) : this.defaultProvider;
     
-    let type = 'general';
-    if (securityPatterns.some(p => p.test(section))) {
-      type = 'security';
-      securityIssues++;
-    } else if (performancePatterns.some(p => p.test(section))) {
-      type = 'performance';
-      performanceIssues++;
-    } else if (bestPracticePatterns.some(p => p.test(section))) {
-      type = 'best_practice';
-      bestPracticeIssues++;
+    if (!provider) {
+      // 尝试重新加载 providers
+      await this.loadProviders();
+      provider = providerName ? this.providers.get(providerName) : this.defaultProvider;
+      
+      if (!provider) {
+        throw new Error('No AI provider available');
+      }
     }
-    
-    const lineNumber = extractLineNumber(section);
-    
-    issues.push({
-      id: index + 1,
-      type,
-      category: type,
-      title: section.split('\n')[0].substring(0, 100),
-      description: section.trim(),
-      line: lineNumber,
-      severity: determineSeverity(section),
-      suggestion: 'See description for details'
+
+    return provider.reviewCode(codeContent, language, options);
+  }
+
+  getAvailableProviders() {
+    return Array.from(this.providers.keys()).map(name => {
+      const provider = this.providers.get(name);
+      return {
+        name: provider.name,
+        type: provider.providerType,
+        isDefault: provider === this.defaultProvider
+      };
     });
-  });
+  }
 
-  const summary = extractSummary(reviewText);
-
-  return {
-    summary,
-    score: {
-      security: Math.max(0, 100 - securityIssues * 10),
-      performance: Math.max(0, 100 - performanceIssues * 10),
-      maintainability: Math.max(0, 100 - bestPracticeIssues * 5),
-      overall: Math.max(0, 100 - issues.length * 5)
-    },
-    issues,
-    metrics: {
-      totalIssues: issues.length,
-      securityIssues,
-      performanceIssues,
-      qualityIssues: bestPracticeIssues
+  async getProviderStatus() {
+    const statuses = [];
+    
+    for (const [name, provider] of this.providers) {
+      try {
+        // 简单 ping 测试
+        const startTime = Date.now();
+        await provider.reviewCode('const x = 1;', 'javascript', { 
+          model: provider.defaultModel 
+        });
+        
+        statuses.push({
+          name,
+          status: 'healthy',
+          latency: Date.now() - startTime
+        });
+      } catch (error) {
+        statuses.push({
+          name,
+          status: 'unhealthy',
+          error: error.message
+        });
+      }
     }
-  };
+    
+    return statuses;
+  }
 }
 
-function extractLineNumber(text) {
-  const match = text.match(/line\s*(\d+)/i);
-  return match ? parseInt(match[1]) : null;
-}
+// 创建单例实例
+const codeReviewService = new CodeReviewService();
 
-function determineSeverity(text) {
-  const highKeywords = /critical|severe|vulnerability|security risk|dangerous/gi;
-  const mediumKeywords = /warning|important|should|recommend/gi;
-  
-  if (highKeywords.test(text)) return 'high';
-  if (mediumKeywords.test(text)) return 'medium';
-  return 'low';
-}
-
-function extractSummary(text) {
-  const summaryMatch = text.match(/(?:summary|conclusion|overall)[\s\S]*?(?=\n\n|\n\d+\.|$)/i);
-  return summaryMatch ? summaryMatch[0].trim() : 'Code review completed.';
+// 导出兼容旧代码的函数
+async function reviewCode(codeContent, language, options = {}) {
+  // 确保 providers 已加载
+  if (codeReviewService.providers.size === 0) {
+    await codeReviewService.loadProviders();
+  }
+  return codeReviewService.reviewCode(codeContent, language, options);
 }
 
 module.exports = {
   reviewCode,
-  PLAN_CONFIGS
+  PLAN_CONFIGS,
+  CodeReviewService,
+  codeReviewService
 };

@@ -32,6 +32,8 @@ export interface CreateReviewData {
   fileName?: string;
   repository?: string;
   branch?: string;
+  provider?: string;
+  model?: string;
 }
 
 export const reviewService = {

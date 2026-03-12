@@ -26,7 +26,8 @@ reviewQueue.process('analyze', 5, async (job) => {
       securityIssues: result.securityIssues,
       performanceIssues: result.performanceIssues,
       bestPracticeIssues: result.bestPracticeIssues,
-      processingTime: result.processingTime
+      processingTime: result.processingTime,
+      provider: result.provider || options.provider || 'default'
     }, {
       where: { id: reviewId }
     });

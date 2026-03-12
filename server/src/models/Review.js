@@ -74,6 +74,14 @@ const Review = sequelize.define('Review', {
   errorMessage: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  provider: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  model: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 }, {
   timestamps: true,

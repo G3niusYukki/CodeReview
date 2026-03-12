@@ -13,7 +13,7 @@ const upload = multer({
 
 router.post('/analyze', auth, checkReviewLimit, async (req, res) => {
   try {
-    const { code, language, fileName, repository, branch } = req.body;
+    const { code, language, fileName, repository, branch, provider, model } = req.body;
 
     if (!code || !language) {
       return res.status(400).json({ 
@@ -39,13 +39,16 @@ router.post('/analyze', auth, checkReviewLimit, async (req, res) => {
       status: 'processing'
     });
 
-    // 添加任务到队列，替代 fire-and-forget 模式
     await reviewQueue.add('analyze', {
       reviewId: review.id,
       code,
       language,
       userId: req.user.id,
-      options: { language: req.user.language }
+      options: { 
+        language: req.user.language,
+        provider,
+        model
+      }
     });
 
     res.status(202).json({
