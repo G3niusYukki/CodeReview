@@ -1,38 +1,72 @@
 services:
-  openclaw-gateway:
-    image: coollabsio/openclaw:latest
-    container_name: xianyu-openclaw
-    ports:
-      - "${OPENCLAW_WEB_PORT:-8080}:8080"
-    volumes:
-      - ./skills:/home/node/.openclaw/workspace/skills
-      - ./src:/home/node/.openclaw/workspace/src
-      - ./config:/home/node/.openclaw/workspace/config
-      - ./data:/home/node/.openclaw/workspace/data
-      - ./requirements.txt:/home/node/.openclaw/workspace/requirements.txt
-      - ./skills:/data/workspace/skills
-      - ./src:/data/workspace/src
-      - ./config:/data/workspace/config
-      - ./data:/data/workspace/data
-      - ./requirements.txt:/data/workspace/requirements.txt
-      - ./scripts/init.sh:/app/config/init.sh
-      - openclaw-state:/home/node/.openclaw
-      - openclaw-state:/data/.openclaw
-    env_file:
-      - .env
-    environment:
-      - HOME=/home/node
-      - TERM=xterm-256color
-      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-}
-      - OPENCLAW_CUSTOM_INIT=/app/config/init.sh
-    init: true
+  postgres:
+    image: postgres:16-alpine
+    container_name: codereview-postgres
     restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-code_review_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8080/healthz"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-code_review_db}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    image: node:20-alpine
+    container_name: codereview-server
+    restart: unless-stopped
+    working_dir: /app
+    command: sh -c "npm install && npm run start"
+    env_file:
+      - ./server/.env.example
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-code_review_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    ports:
+      - "${SERVER_PORT:-3001}:3001"
+    volumes:
+      - ./server:/app
+      - server-node-modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  client:
+    image: node:20-alpine
+    container_name: codereview-client
+    restart: unless-stopped
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    env_file:
+      - ./client/.env.example
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3001}
+    ports:
+      - "${CLIENT_PORT:-5173}:5173"
+    volumes:
+      - ./client:/app
+      - client-node-modules:/app/node_modules
+    depends_on:
+      - server
 
 volumes:
-  openclaw-state:
+  postgres-data:
+  server-node-modules:
+  client-node-modules:

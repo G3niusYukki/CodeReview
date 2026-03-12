@@ -1,33 +1,67 @@
 ---
 name: Bug Report
-about: Something isn't working as expected
+about: Report a reproducible problem in CodeReview
 title: "[Bug] "
-labels: bug
-assignees: ''
+labels: ["bug"]
+assignees: []
 ---
 
-## Describe the bug
+## Summary
 
-A clear description of what the bug is.
+A clear and concise description of the problem.
 
-## To reproduce
+## Impact
 
-1. Run `...`
-2. Say "..."
-3. See error
+What is affected?
 
-## Expected behavior
+- [ ] Frontend
+- [ ] Backend API
+- [ ] Authentication
+- [ ] GitHub integration
+- [ ] Billing / Stripe
+- [ ] Database
+- [ ] Other
 
-What should have happened.
+## Steps to Reproduce
 
-## Logs
+1. Go to `...`
+2. Click `...`
+3. Submit `...`
+4. See error
 
-```
-Paste relevant logs here (docker compose logs)
+## Expected Behavior
+
+Describe what you expected to happen.
+
+## Actual Behavior
+
+Describe what actually happened.
+
+## Screenshots or Logs
+
+Add screenshots, console output, server logs, or API responses if available.
+
+```text
+Paste logs here
 ```
 
 ## Environment
 
-- OS: [e.g. macOS 15, Ubuntu 24.04]
-- Docker version: [e.g. 27.0]
-- xianyu-openclaw version: [e.g. v4.0.0]
+- App version:
+- OS:
+- Browser:
+- Node.js version:
+- npm version:
+- Database:
+- Deployment mode: local / staging / production
+
+## API Context (if applicable)
+
+- Endpoint:
+- Request payload:
+- Response status:
+- Response body:
+
+## Additional Context
+
+Add any other context, possible cause, or workaround you found.

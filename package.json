@@ -1,15 +1,22 @@
 {
-  "name": "code-review-service",
+  "name": "CodeReview",
   "version": "1.0.0",
-  "description": "AI-powered code review service",
+  "description": "AI-powered code review platform workspace",
   "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
-    "install:all": "cd server && npm install && cd ../client && npm install",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "cd server && npm run dev",
-    "dev:client": "cd client && npm run dev",
-    "build": "cd client && npm run build",
-    "start": "cd server && npm start"
+    "install:all": "npm install --workspaces",
+    "dev": "concurrently \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "build": "npm run build --workspace client",
+    "build:client": "npm run build --workspace client",
+    "start": "npm run start --workspace server",
+    "start:server": "npm run start --workspace server",
+    "test": "npm run test --workspace server"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
