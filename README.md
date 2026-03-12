@@ -21,6 +21,7 @@ Built with modern web technologies, it supports multiple AI providers, team coll
 ### ✨ Key Features
 
 - 🤖 **Multi-AI Provider Support** — OpenAI, Anthropic Claude, Google Gemini, and custom OpenAI-compatible endpoints
+- 🔑 **Bring Your Own API Key** — Free users can use their own API keys for unlimited reviews
 - 🔐 **Secure Authentication** — JWT-based auth with GitHub OAuth integration
 - 👥 **Team Collaboration** — Team workspaces with role-based access control
 - 📝 **Structured Analysis** — JSON-formatted review results with scores and metrics
@@ -71,6 +72,41 @@ npm run dev
 The application will be available at:
 - **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:3001
+
+---
+
+## 🚀 Deploy to Production
+
+### Option 1: Vercel + Railway (Recommended)
+
+**One-click deploy:**
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/G3niusYukki/CodeReview)
+
+See [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) for detailed instructions.
+
+### Option 2: Docker Compose
+
+```bash
+# Clone repository
+git clone https://github.com/G3niusYukki/CodeReview.git
+cd CodeReview
+
+# Deploy with Docker Compose
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### Quick Deploy Checklist
+
+- [ ] Set up PostgreSQL database
+- [ ] Set up Redis
+- [ ] Configure environment variables
+- [ ] Deploy backend (Railway/Render/AWS)
+- [ ] Deploy frontend (Vercel/Netlify)
+- [ ] Configure custom domain (optional)
+- [ ] Set up SSL/HTTPS
+- [ ] Test registration & login
+- [ ] Configure AI provider
 
 ---
 
@@ -138,6 +174,9 @@ CodeReview/
 ## 📚 Documentation
 
 - [AI Provider Configuration Guide](docs/AI_PROVIDER_GUIDE.md) — Configure custom AI providers
+- [User API Key Guide](docs/USER_API_KEY_GUIDE.md) — Use your own API key for unlimited reviews
+- [Production Deployment Guide](PRODUCTION_DEPLOYMENT.md) — Deploy to production
+- [Deployment Guide](DEPLOYMENT.md) — Local development and troubleshooting
 - [API Documentation](#api-documentation) — REST API reference
 - [Contributing Guide](#contributing) — How to contribute
 - [Changelog](#changelog) — Version history
