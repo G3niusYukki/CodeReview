@@ -1,19 +1,21 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const cookieParser = require('cookie-parser');
-const sequelize = require('./config/database');
+import dotenv from 'dotenv';
+dotenv.config();
 
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/user');
-const reviewRoutes = require('./routes/review');
-const githubRoutes = require('./routes/github');
-const paymentRoutes = require('./routes/payment');
-const { authLimiter, apiLimiter } = require('./middleware/rateLimiter');
+import express, { Application, Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
+import sequelize from './config/database';
 
-const app = express();
+import authRoutes from './routes/auth';
+import userRoutes from './routes/user';
+import reviewRoutes from './routes/review';
+import githubRoutes from './routes/github';
+import paymentRoutes from './routes/payment';
+import { authLimiter, apiLimiter } from './middleware/rateLimiter';
+
+const app: Application = express();
 
 app.use(helmet());
 app.use(cors({
@@ -25,18 +27,17 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 应用速率限制
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/user', apiLimiter, userRoutes);
 app.use('/api/review', apiLimiter, reviewRoutes);
 app.use('/api/github', apiLimiter, githubRoutes);
 app.use('/api/payment', apiLimiter, paymentRoutes);
 
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use((err, req, res, next) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack);
   res.status(500).json({
     error: 'Internal server error',
@@ -46,7 +47,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3001;
 
-async function startServer() {
+async function startServer(): Promise<void> {
   try {
     await sequelize.authenticate();
     console.log('Database connected successfully');
@@ -66,4 +67,4 @@ async function startServer() {
 
 startServer();
 
-module.exports = app;
+export default app;
