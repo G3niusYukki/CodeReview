@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import axios from 'axios'
 import toast from 'react-hot-toast'
-import { User, Shield, CreditCard, Bell, Globe } from 'lucide-react'
+import { User, Shield, CreditCard, Bell, Globe, Key } from 'lucide-react'
 
 const Settings = () => {
   const { user, fetchUser } = useAuth()
@@ -11,10 +11,78 @@ const Settings = () => {
     username: user?.username || '',
     language: user?.language || 'en'
   })
+  const [apiSettings, setApiSettings] = useState({
+    apiKey: '',
+    apiProvider: 'openai',
+    apiEndpoint: '',
+    apiModel: 'gpt-4'
+  })
+  const [apiSettingsLoaded, setApiSettingsLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [apiLoading, setApiLoading] = useState(false)
+
+  React.useEffect(() => {
+    if (activeTab === 'api' && !apiSettingsLoaded) {
+      loadApiSettings()
+    }
+  }, [activeTab, apiSettingsLoaded])
+
+  const loadApiSettings = async () => {
+    try {
+      const response = await axios.get('/api/user/settings/api')
+      setApiSettings({
+        apiKey: '',
+        apiProvider: response.data.apiProvider || 'openai',
+        apiEndpoint: response.data.apiEndpoint || '',
+        apiModel: response.data.apiModel || 'gpt-4'
+      })
+      setApiSettingsLoaded(true)
+    } catch (error) {
+      console.error('Failed to load API settings:', error)
+    }
+  }
+
+  const handleSaveApiSettings = async (e) => {
+    e.preventDefault()
+    setApiLoading(true)
+
+    try {
+      await axios.put('/api/user/settings/api', apiSettings)
+      toast.success('API settings saved successfully')
+      setApiSettings({ ...apiSettings, apiKey: '' })
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to save API settings')
+    } finally {
+      setApiLoading(false)
+    }
+  }
+
+  const handleClearApiKey = async () => {
+    setApiLoading(true)
+    try {
+      await axios.put('/api/user/settings/api', {
+        apiKey: '',
+        apiProvider: null,
+        apiEndpoint: null,
+        apiModel: null
+      })
+      setApiSettings({
+        apiKey: '',
+        apiProvider: 'openai',
+        apiEndpoint: '',
+        apiModel: 'gpt-4'
+      })
+      toast.success('API key removed')
+    } catch (error) {
+      toast.error('Failed to remove API key')
+    } finally {
+      setApiLoading(false)
+    }
+  }
 
   const tabs = [
     { id: 'profile', name: 'Profile', icon: User },
+    { id: 'api', name: 'AI Provider', icon: Key },
     { id: 'security', name: 'Security', icon: Shield },
     { id: 'billing', name: 'Billing', icon: CreditCard },
     { id: 'notifications', name: 'Notifications', icon: Bell },
@@ -129,6 +197,128 @@ const Settings = () => {
                   >
                     {loading ? 'Saving...' : 'Save Changes'}
                   </button>
+                </form>
+              </div>
+            )}
+
+            {activeTab === 'api' && (
+              <div className="p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                  AI Provider Configuration
+                </h2>
+                <p className="text-sm text-gray-600 mb-6">
+                  Use your own API key for unlimited code reviews. Your API key is encrypted and secure.
+                </p>
+                
+                <form onSubmit={handleSaveApiSettings} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      AI Provider
+                    </label>
+                    <select
+                      value={apiSettings.apiProvider}
+                      onChange={(e) => setApiSettings({ ...apiSettings, apiProvider: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="openai">OpenAI</option>
+                      <option value="anthropic">Anthropic Claude</option>
+                      <option value="google">Google Gemini</option>
+                      <option value="custom">Custom Endpoint</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Select the AI provider you want to use
+                    </p>
+                  </div>
+
+                  {apiSettings.apiProvider === 'custom' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Custom API Endpoint
+                      </label>
+                      <input
+                        type="text"
+                        value={apiSettings.apiEndpoint}
+                        onChange={(e) => setApiSettings({ ...apiSettings, apiEndpoint: e.target.value })}
+                        placeholder="https://api.example.com/v1/chat/completions"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Enter the full URL of your custom API endpoint
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Model
+                    </label>
+                    <input
+                      type="text"
+                      value={apiSettings.apiModel}
+                      onChange={(e) => setApiSettings({ ...apiSettings, apiModel: e.target.value })}
+                      placeholder="gpt-4"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      e.g., gpt-4, gpt-3.5-turbo, claude-3-opus, gemini-pro
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={apiSettings.apiKey}
+                      onChange={(e) => setApiSettings({ ...apiSettings, apiKey: e.target.value })}
+                      placeholder={user?.hasApiKey ? '••••••••••••••••' : 'Enter your API key'}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      {user?.hasApiKey 
+                        ? 'Leave blank to keep existing key, or enter new key to update' 
+                        : 'Your API key is encrypted and never shared'}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <button
+                      type="submit"
+                      disabled={apiLoading}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                    >
+                      {apiLoading ? 'Saving...' : 'Save API Settings'}
+                    </button>
+                    
+                    {user?.hasApiKey && (
+                      <button
+                        type="button"
+                        onClick={handleClearApiKey}
+                        disabled={apiLoading}
+                        className="bg-red-100 text-red-700 px-6 py-2 rounded-lg font-medium hover:bg-red-200 transition disabled:opacity-50"
+                      >
+                        Remove API Key
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="bg-blue-50 rounded-lg p-4 mt-6">
+                    <h3 className="font-medium text-blue-900 mb-2">
+                      Why use your own API key?
+                    </h3>
+                    <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                      <li>Unlimited code reviews (no plan limits)</li>
+                      <li>You control the costs directly</li>
+                      <li>Often cheaper than paid plans</li>
+                      <li>Support for custom AI providers</li>
+                    </ul>
+                    <p className="mt-3 text-sm text-blue-600">
+                      <a href="/docs/USER_API_KEY_GUIDE.md" target="_blank" className="underline hover:text-blue-800">
+                        Learn more about using your own API key →
+                      </a>
+                    </p>
+                  </div>
                 </form>
               </div>
             )}
