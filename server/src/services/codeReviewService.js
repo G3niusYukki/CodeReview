@@ -1,5 +1,6 @@
 const { ProviderFactory } = require('../providers');
 const AIProvider = require('../models/AIProvider');
+const User = require('../models/User');
 
 const PLAN_CONFIGS = {
   free: { limit: 5, price: 0, name: 'Free' },
@@ -75,10 +76,43 @@ class CodeReviewService {
 
   async reviewCode(codeContent, language, options = {}) {
     const providerName = options.provider;
+    const userId = options.userId;
+    
+    // Check if user has their own API key
+    if (userId) {
+      const user = await User.findByPk(userId);
+      if (user && user.apiKey) {
+        console.log(`Using user's own API key for user ${userId}`);
+        const userProviderConfig = {
+          name: `user-${userId}`,
+          providerType: user.apiProvider || 'openai-compatible',
+          apiEndpoint: user.apiEndpoint || this.getDefaultEndpoint(user.apiProvider),
+          apiKey: user.apiKey,
+          defaultModel: user.apiModel || 'gpt-4',
+          config: {
+            temperature: 0.3,
+            maxTokens: 4000,
+            timeout: 60000,
+            supportsJsonMode: true
+          }
+        };
+        
+        try {
+          const userProvider = ProviderFactory.createProvider(userProviderConfig);
+          const result = await userProvider.reviewCode(codeContent, language, options);
+          result.provider = 'user-custom';
+          result.model = userProviderConfig.defaultModel;
+          return result;
+        } catch (error) {
+          console.error('User API key failed, falling back to system:', error.message);
+          // Fall through to system provider if user API fails
+        }
+      }
+    }
+    
     let provider = providerName ? this.providers.get(providerName) : this.defaultProvider;
     
     if (!provider) {
-      // 尝试重新加载 providers
       await this.loadProviders();
       provider = providerName ? this.providers.get(providerName) : this.defaultProvider;
       
@@ -88,6 +122,16 @@ class CodeReviewService {
     }
 
     return provider.reviewCode(codeContent, language, options);
+  }
+  
+  getDefaultEndpoint(providerType) {
+    const endpoints = {
+      'openai': 'https://api.openai.com/v1/chat/completions',
+      'anthropic': 'https://api.anthropic.com/v1/messages',
+      'google': 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+      'custom': process.env.GLM5_API_URL || 'https://api.openai.com/v1/chat/completions'
+    };
+    return endpoints[providerType] || endpoints['openai'];
   }
 
   getAvailableProviders() {

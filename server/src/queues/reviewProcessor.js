@@ -13,7 +13,10 @@ reviewQueue.process('analyze', 5, async (job) => {
     await job.progress(10);
 
     // 执行代码审查
-    const result = await reviewCode(code, language, options);
+    const result = await reviewCode(code, language, {
+      ...options,
+      userId
+    });
     
     await job.progress(80);
 

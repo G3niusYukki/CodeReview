@@ -100,4 +100,58 @@ function getNextMonthFirstDay() {
   return nextMonth.toISOString();
 }
 
+router.get('/settings/api', auth, async (req, res) => {
+  try {
+    const user = req.user;
+    res.json({
+      hasApiKey: Boolean(user.apiKey),
+      apiProvider: user.apiProvider,
+      apiEndpoint: user.apiEndpoint,
+      apiModel: user.apiModel
+    });
+  } catch (error) {
+    console.error('Get API settings error:', error);
+    res.status(500).json({ error: 'Failed to get API settings' });
+  }
+});
+
+router.put('/settings/api', auth, async (req, res) => {
+  try {
+    const { apiKey, apiProvider, apiEndpoint, apiModel } = req.body;
+    const user = req.user;
+
+    if (apiKey !== undefined) {
+      if (apiKey === '') {
+        user.apiKey = null;
+        user.apiProvider = null;
+        user.apiEndpoint = null;
+        user.apiModel = null;
+      } else {
+        if (!apiProvider) {
+          return res.status(400).json({ error: 'API provider is required' });
+        }
+        user.apiKey = apiKey;
+        user.apiProvider = apiProvider;
+        user.apiEndpoint = apiEndpoint || null;
+        user.apiModel = apiModel || 'gpt-4';
+      }
+    }
+
+    await user.save();
+
+    res.json({
+      message: 'API settings updated successfully',
+      settings: {
+        hasApiKey: Boolean(user.apiKey),
+        apiProvider: user.apiProvider,
+        apiEndpoint: user.apiEndpoint,
+        apiModel: user.apiModel
+      }
+    });
+  } catch (error) {
+    console.error('Update API settings error:', error);
+    res.status(500).json({ error: 'Failed to update API settings' });
+  }
+});
+
 module.exports = router;

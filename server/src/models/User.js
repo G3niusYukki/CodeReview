@@ -79,6 +79,34 @@ const User = sequelize.define('User', {
       const value = this.getDataValue('githubAccessToken');
       return value ? decrypt(value) : null;
     }
+  },
+  apiKey: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    set(value) {
+      if (value) {
+        this.setDataValue('apiKey', encrypt(value));
+      } else {
+        this.setDataValue('apiKey', null);
+      }
+    },
+    get() {
+      const value = this.getDataValue('apiKey');
+      return value ? decrypt(value) : null;
+    }
+  },
+  apiProvider: {
+    type: DataTypes.ENUM('openai', 'anthropic', 'google', 'custom'),
+    allowNull: true
+  },
+  apiEndpoint: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  apiModel: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: 'gpt-4'
   }
 }, {
   timestamps: true,
