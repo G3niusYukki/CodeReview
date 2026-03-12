@@ -2,6 +2,7 @@ const { reviewQueue } = require('./reviewQueue');
 const Review = require('../models/Review');
 const User = require('../models/User');
 const { reviewCode } = require('../services/codeReviewService');
+const WebhookService = require('../services/webhookService');
 
 // 处理代码审查任务
 reviewQueue.process('analyze', 5, async (job) => {
@@ -37,6 +38,16 @@ reviewQueue.process('analyze', 5, async (job) => {
 
     await job.progress(100);
 
+    // Trigger webhook for completed review
+    await WebhookService.trigger(userId, 'review.completed', {
+      reviewId,
+      status: 'completed',
+      issuesFound: result.issuesFound,
+      securityIssues: result.securityIssues,
+      performanceIssues: result.performanceIssues,
+      score: result.score
+    });
+
     return {
       success: true,
       reviewId,
@@ -44,13 +55,20 @@ reviewQueue.process('analyze', 5, async (job) => {
     };
   } catch (error) {
     console.error(`Review job ${job.id} failed:`, error);
-    
-    // 更新审查记录为失败状态
+
+    // Update review record to failed status
     await Review.update({
       status: 'failed',
       errorMessage: error.message
     }, {
       where: { id: reviewId }
+    });
+
+    // Trigger webhook for failed review
+    await WebhookService.trigger(userId, 'review.failed', {
+      reviewId,
+      status: 'failed',
+      error: error.message
     });
 
     throw error;

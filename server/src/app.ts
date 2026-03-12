@@ -13,6 +13,8 @@ import userRoutes from './routes/user';
 import reviewRoutes from './routes/review';
 import githubRoutes from './routes/github';
 import paymentRoutes from './routes/payment';
+import teamRoutes from './routes/team';
+import webhookRoutes from './routes/webhook';
 import { authLimiter, apiLimiter } from './middleware/rateLimiter';
 
 const app: Application = express();
@@ -32,6 +34,8 @@ app.use('/api/user', apiLimiter, userRoutes);
 app.use('/api/review', apiLimiter, reviewRoutes);
 app.use('/api/github', apiLimiter, githubRoutes);
 app.use('/api/payment', apiLimiter, paymentRoutes);
+app.use('/api/team', apiLimiter, teamRoutes);
+app.use('/api/webhooks', apiLimiter, webhookRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
