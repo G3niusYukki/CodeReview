@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const { encrypt, decrypt } = require('../utils/encryption');
 
 const User = sequelize.define('User', {
   id: {
@@ -67,6 +68,17 @@ const User = sequelize.define('User', {
   isActive: {
     type: DataTypes.BOOLEAN,
     default: true
+  },
+  githubAccessToken: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    set(value) {
+      this.setDataValue('githubAccessToken', encrypt(value));
+    },
+    get() {
+      const value = this.getDataValue('githubAccessToken');
+      return value ? decrypt(value) : null;
+    }
   }
 }, {
   timestamps: true,

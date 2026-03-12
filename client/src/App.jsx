@@ -28,28 +28,38 @@ function AuthCallback() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    const token = params.get('token')
     const error = params.get('error')
 
-    if (error || !token) {
+    if (error) {
       navigate('/login', { replace: true })
       return
     }
 
-    const bootstrapUser = {
-      id: null,
-      email: '',
-      username: 'GitHub User',
-      avatar: null,
-      plan: 'free',
-      reviewsLimit: 5,
-      reviewsUsed: 0,
-      reviewsRemaining: 5
+    // Token 现在通过 httpOnly cookie 传递，需要调用 API 验证
+    const verifyAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/verify', {
+          method: 'GET',
+          credentials: 'include' // 重要：包含 cookies
+        })
+
+        if (!response.ok) {
+          throw new Error('Auth verification failed')
+        }
+
+        const data = await response.json()
+        
+        // 登录成功，跳转到 dashboard
+        Promise.resolve(login(data.token, data.user)).then(() => {
+          navigate('/dashboard', { replace: true })
+        })
+      } catch (error) {
+        console.error('OAuth callback error:', error)
+        navigate('/login?error=oauth_failed', { replace: true })
+      }
     }
 
-    Promise.resolve(login(token, bootstrapUser)).then(() => {
-      navigate('/dashboard', { replace: true })
-    })
+    verifyAuth()
   }, [location.search, login, navigate])
 
   return (

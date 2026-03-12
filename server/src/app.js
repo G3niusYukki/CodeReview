@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const sequelize = require('./config/database');
 
 const authRoutes = require('./routes/auth');
@@ -10,6 +11,7 @@ const userRoutes = require('./routes/user');
 const reviewRoutes = require('./routes/review');
 const githubRoutes = require('./routes/github');
 const paymentRoutes = require('./routes/payment');
+const { authLimiter, apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
@@ -19,14 +21,16 @@ app.use(cors({
   credentials: true
 }));
 app.use(morgan('combined'));
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/review', reviewRoutes);
-app.use('/api/github', githubRoutes);
-app.use('/api/payment', paymentRoutes);
+// 应用速率限制
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/user', apiLimiter, userRoutes);
+app.use('/api/review', apiLimiter, reviewRoutes);
+app.use('/api/github', apiLimiter, githubRoutes);
+app.use('/api/payment', apiLimiter, paymentRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

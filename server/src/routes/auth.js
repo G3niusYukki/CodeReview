@@ -170,10 +170,53 @@ router.get('/github/callback', async (req, res) => {
 
     const token = generateToken(user.id);
 
-    res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}`);
+    // 使用 httpOnly cookie 存储 token，不再暴露在 URL 中
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.redirect(`${process.env.FRONTEND_URL}/auth/callback`);
   } catch (error) {
     console.error('GitHub OAuth error:', error);
     res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`);
+  }
+});
+
+// 验证 OAuth cookie 并返回用户信息
+router.get('/verify', async (req, res) => {
+  try {
+    const token = req.cookies.auth_token;
+    
+    if (!token) {
+      return res.status(401).json({ error: 'No authentication token' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findByPk(decoded.userId);
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ error: 'User not found or inactive' });
+    }
+
+    // 返回 token 和用户信息
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        avatar: user.avatar,
+        plan: user.plan,
+        reviewsLimit: user.reviewsLimit,
+        reviewsUsed: user.reviewsUsed
+      }
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(401).json({ error: 'Invalid token' });
   }
 });
 

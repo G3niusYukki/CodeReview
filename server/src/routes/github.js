@@ -2,12 +2,12 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { auth } = require('../middleware/auth');
-
-let githubTokens = new Map();
+const User = require('../models/User');
 
 router.get('/repos', auth, async (req, res) => {
   try {
-    const token = githubTokens.get(req.user.id);
+    const user = await User.findByPk(req.user.id);
+    const token = user?.githubAccessToken;
     if (!token) {
       return res.status(401).json({ error: 'GitHub not connected' });
     }
@@ -43,7 +43,8 @@ router.get('/repos/:owner/:repo/contents', auth, async (req, res) => {
     const { owner, repo } = req.params;
     const { path = '' } = req.query;
     
-    const token = githubTokens.get(req.user.id);
+    const user = await User.findByPk(req.user.id);
+    const token = user?.githubAccessToken;
     if (!token) {
       return res.status(401).json({ error: 'GitHub not connected' });
     }
@@ -78,7 +79,8 @@ router.get('/repos/:owner/:repo/file', auth, async (req, res) => {
       return res.status(400).json({ error: 'File path required' });
     }
 
-    const token = githubTokens.get(req.user.id);
+    const user = await User.findByPk(req.user.id);
+    const token = user?.githubAccessToken;
     if (!token) {
       return res.status(401).json({ error: 'GitHub not connected' });
     }
@@ -113,7 +115,8 @@ router.get('/repos/:owner/:repo/branches', auth, async (req, res) => {
   try {
     const { owner, repo } = req.params;
     
-    const token = githubTokens.get(req.user.id);
+    const user = await User.findByPk(req.user.id);
+    const token = user?.githubAccessToken;
     if (!token) {
       return res.status(401).json({ error: 'GitHub not connected' });
     }
@@ -149,7 +152,7 @@ router.post('/connect', auth, async (req, res) => {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
 
-    githubTokens.set(req.user.id, accessToken);
+    await user.update({ githubAccessToken: accessToken });
 
     res.json({ 
       message: 'GitHub connected successfully',

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { body, validationResult } = require('express-validator');
 const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const { PLAN_CONFIGS } = require('../services/codeReviewService');
@@ -32,8 +33,25 @@ router.get('/profile', auth, async (req, res) => {
   }
 });
 
-router.put('/profile', auth, async (req, res) => {
+const validateProfile = [
+  body('username')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Username must be between 2 and 50 characters'),
+  body('language')
+    .optional()
+    .isIn(['zh', 'en'])
+    .withMessage('Language must be either zh or en')
+];
+
+router.put('/profile', auth, validateProfile, async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const { username, language } = req.body;
     const user = req.user;
 

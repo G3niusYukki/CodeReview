@@ -3,7 +3,7 @@ const router = express.Router();
 const { auth, checkReviewLimit } = require('../middleware/auth');
 const Review = require('../models/Review');
 const User = require('../models/User');
-const { reviewCode } = require('../services/codeReviewService');
+const { reviewQueue } = require('../queues/reviewQueue');
 const multer = require('multer');
 
 const upload = multer({ 
@@ -39,28 +39,14 @@ router.post('/analyze', auth, checkReviewLimit, async (req, res) => {
       status: 'processing'
     });
 
-    reviewCode(code, language, { language: req.user.language })
-      .then(async (result) => {
-        await review.update({
-          status: 'completed',
-          result: result.issues,
-          summary: result.summary,
-          issuesFound: result.issuesFound,
-          securityIssues: result.securityIssues,
-          performanceIssues: result.performanceIssues,
-          bestPracticeIssues: result.bestPracticeIssues,
-          processingTime: result.processingTime
-        });
-
-        await req.user.increment('reviewsUsed');
-      })
-      .catch(async (error) => {
-        console.error('Review processing error:', error);
-        await review.update({
-          status: 'failed',
-          errorMessage: error.message
-        });
-      });
+    // 添加任务到队列，替代 fire-and-forget 模式
+    await reviewQueue.add('analyze', {
+      reviewId: review.id,
+      code,
+      language,
+      userId: req.user.id,
+      options: { language: req.user.language }
+    });
 
     res.status(202).json({
       message: 'Review started',
